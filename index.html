@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+  <title>WebRTC 聊天室</title>
+  <style>
+ 
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#canvas { /* The Godot canvas itself */
+            width: 100%;
+            height: 100%;
+            display: block; /* Remove extra space below canvas */
+			}
+/* Style the header */
+
+header {
+  background-color: #666;
+  padding: 1px;
+  text-align: center;
+  font-size: 10px;
+  color: white;
+}
+
+/* Create two columns/boxes that floats next to each other */
+nav {
+  float: left;
+  width: 80%;
+ /* height: 300px;  only for demonstration, should be removed */
+  background: #ccc;
+  padding: 5px;
+  overflow-y: auto;
+}
+
+/* Style the list inside the menu */
+nav ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+article {
+  float: left;
+  padding: 5px;
+  width: 20%;
+  background-color: #f1f1f1;
+  /*height: 300px;  only for demonstration, should be removed */
+  overflow-y: scroll;
+}
+
+/* Clear floats after the columns */
+section::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Style the footer */
+footer {
+  background-color: #777;
+  padding: 10px;
+  text-align: center;
+  color: white;
+}
+#status {
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 4px;
+}
+.connected {
+    background-color: #dff0d8;
+}
+.disconnected {
+    background-color: #f2dede;
+}
+#drinkLog {
+    height: 200px;
+    overflow-y: scroll;
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-top: 20px;
+}
+/* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
+@media (max-width: 600px) {
+  nav, article {
+    width: 100%;
+    height: auto;
+  }
+}
+  
+#video-section {display: flex; flex-direction: column; align-items: center; justify-content: center;padding: 3px;}
+video { width: 95%;border-radius: 1px;padding: 3px;background:rgba(255, 255, 255, 0);}
+
+  </style>
+</head>
+<body>
+  <header>
+  <button id="generateRoom">🚪 產生房間號碼Room</button>
+  <input type="text" id="room-id-input" placeholder="輸入房間號碼...">
+  <button id="joinBtn">🚪 加入房間Room</button>
+  
+  <p>請確保您的瀏覽器支援 WebRTC，並允許使用攝像頭和麥克風</p>
+</header>
+<section>
+  <nav>
+    <canvas id="canvas" width="512" height="400"></canvas>
+</nav>
+  <article>
+    <div id="chat-container">
+      <div id="video-section">
+        <video id="localVideo" autoplay muted playsinline></video>
+      </div>
+    </div>
+    
+  </article>
+</section>
+<footer>
+  <div id="controls">
+    <button id="toggleAudio">🎤 靜音</button>
+    <button id="toggleVideo">📷 關閉鏡頭</button>
+    <button id="leaveRoom">🚪 離開</button>
+  </div>
+  <div id="status"></div>
+  <div id="drink-section">
+    <input type="text" id="drinkInput" placeholder="輸入...">
+    <button id="sendDrinkBtn">傳送</button>
+    <div id="drinkLog"></div>
+  </div>
+
+</footer>
+
+<script type="module">
+import {joinRoom} from './trystero-nostr.min.js'
+import {selfId} from './trystero-nostr.min.js'
+
+function randomAscii6() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
+
+let room ;
+var roomId = null;
+let sendDrink, getDrink;
+let selfStream;
+let audioEnabled = true;
+const peerAudios = {}
+const peerVideos = {}
+
+const localVideo = document.getElementById('localVideo')
+const toggleBtn = document.getElementById('toggleAudio');
+const remoteVideo = document.getElementById('video-section')
+const join = document.getElementById('joinBtn');
+const roomIdInput = document.getElementById('room-id-input');
+const statusDiv = document.getElementById('status');
+const controlsDiv = document.getElementById('controls');
+const drinkInput = document.getElementById('drinkInput');
+const sendDrinkBtn = document.getElementById('sendDrinkBtn');
+const drinkLog = document.getElementById('drinkLog');
+
+generateRoom.onclick = () => {
+  roomId = randomAscii6();
+  roomIdInput.value = roomId;
+}
+
+ // 初始取得音訊+視訊串流
+  async function initStream() {
+    selfStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true
+    });
+    localVideo.srcObject = selfStream;
+  }
+  // 切換音訊狀態
+  function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    const audioTracks = selfStream.getAudioTracks();
+    
+    audioTracks.forEach(track => {
+      track.enabled = audioEnabled; // 開關音訊
+    });
+
+    toggleBtn.textContent = audioEnabled ? '關閉音訊' : '啟用音訊';
+  }
+
+  toggleBtn.addEventListener('click', toggleAudio);
+  initStream();
+
+join.onclick = () => {
+  if (!roomIdInput.value) {
+                alert('請輸入房間ID');
+                return;
+            }
+  join.disabled = true;
+  roomIdInput.disabled = true;
+  try {
+    const config = { appId: 'godot-video-app' };
+    room = joinRoom(config, roomIdInput.value.trim());
+    toGodot({"type": "joinRoom", "data": {"peerId": selfId, "message": `已加入房間 ${roomId}`}});
+
+    // 建立 drink 動作
+    [sendDrink, getDrink] = room.makeAction('drink');
+    // 設置接收飲料的處理函數
+      getDrink(drink => {
+          const timestamp = new Date().toLocaleTimeString();
+          const logEntry = document.createElement('div');
+          logEntry.textContent = `[${timestamp}] 收到: ${drink}`;
+          drinkLog.prepend(logEntry);
+      });
+ 
+    room.onPeerJoin(peerId => {
+      logMessage(`同伴加入: ${peerId}`);
+      updateStatus();
+    })
+
+    room.onPeerLeave(peerId => {
+      logMessage(`同伴離開: ${peerId}`);
+      updateStatus();
+      delete peerAudios.peerId;
+      delete peerVideos.peerId;
+      let peerDiv = document.getElementById(peerId);
+        if (peerDiv) {
+            peerDiv.remove(); // Removes the div element from the DOM
+        };
+    });
+    // 更新UI
+    controlsDiv.style.display = 'block';
+    statusDiv.textContent = '狀態: 已連接';
+    statusDiv.className = 'connected';
+    
+    logMessage('已成功加入房間，可以開始傳送了！');
+     } catch (error) {
+                console.error('連接失敗:', error);
+                statusDiv.textContent = `狀態: 連接失敗 - ${error.message}`;
+                statusDiv.className = 'disconnected';
+                startBtn.disabled = false;
+                roomIdInput.disabled = false;
+    }       
+
+// get a local video,audio stream from the microphone
+localVideo.srcObject = selfStream
+
+// send stream to peers currently in the room
+room.addStream(selfStream)
+
+
+// send stream to peers who join later
+room.onPeerJoin(peerId => {
+  room.addStream(selfStream, peerId)
+  toGodot({"type": "peerJoin", "data": {"peerId": peerId, "message": `${peerId} joined`}});
+})
+
+// handle streams from other peers
+room.onPeerStream((stream, peerId) => {
+  const audio = new Audio()
+  audio.srcObject = stream
+  audio.autoplay = true
+  peerAudios[peerId] = audio
+
+  let video = peerVideos[peerId]
+  if (!video) {
+    video = document.createElement('video')
+    video.setAttribute("id", peerId);
+    // iOS 手機使用時，必須增加的屬性
+    video.setAttribute("autoplay", "");
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    remoteVideo.appendChild(video)
+    }
+  video.srcObject = stream
+  peerVideos[peerId] = video
+  })
+}
+// 發送飲料按鈕點擊事件
+  sendDrinkBtn.addEventListener('click', () => {
+      const drink = drinkInput.value.trim();
+      if (!drink) {
+          alert('請輸入飲料名稱');
+          return;
+      }
+      
+      // 發送飲料給所有同伴
+      sendDrink(drink);
+      
+      // 記錄到本地日誌
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('div');
+      logEntry.textContent = `[${timestamp}] 你送出了: ${drink}`;
+      drinkLog.prepend(logEntry);
+      
+      // 清空輸入框
+      drinkInput.value = '';
+  });
+// 更新狀態顯示
+  function updateStatus() {
+      const peers = room.getPeers();
+      statusDiv.textContent = `狀態: 已連接 (${peers.length} 位同伴)`;
+  }
+  
+  // 記錄消息到日誌
+  function logMessage(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('div');
+      logEntry.textContent = `[${timestamp}] ${message}`;
+      drinkLog.prepend(logEntry);
+  }
+
+</script>
+
+<script src="index.js"></script>
+<script>
+	const GODOT_THREADS_ENABLED = false;
+    var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":5247296,"index.wasm":43016933},"focusCanvas":true,"gdextensionLibs":[]});
+	engine.startGame({
+    /* optional override configuration, eg. */
+	 //args:[],
+     //unloadAfterInit: false,
+	 focusCanvas:true,
+	 gdextensionLibs:[],
+	 ensureCrossOriginIsolationHeaders:true,
+   canvasResizePolicy: 0,
+	});
+
+  var value = "1234567890";
+  var toGodot = null;
+  
+  
+  window.JSGD = {
+// 這個函數會在 Godot 中被調用
+	getVal: function() {
+		return ("peerId" in window) ? room.peerId : "未設定\n";
+	},
+  sendVal: function(val) {
+    let value = JSON.parse(val);
+		sendDrink({drink: value.drink, withIce: value.withIce}, value.frandId);
+	},
+	gdcb: function(gdCbFunc) {
+		if (typeof gdCbFunc === "function") {
+      toGodot = gdCbFunc;
+      // 立即測試回調
+      gdCbFunc("JavaScript 回調函數已設置");
+      console.log("Godot callback function ready to use");
+    } else {
+      console.log("Godot callback function must be a function");
+    }
+	}
+};
+ </script>
+
+
+
+</body>
+</html>
+
+
