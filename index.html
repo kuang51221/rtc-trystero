@@ -116,6 +116,7 @@ video { width: 95%;border-radius: 1px;padding: 3px;background:rgba(255, 255, 255
     <div id="chat-container">
       <div id="video-section">
         <video id="localVideo" autoplay muted playsinline></video>
+        <div id="remoteVideos"></div>
       </div>
     </div>
     
@@ -123,8 +124,11 @@ video { width: 95%;border-radius: 1px;padding: 3px;background:rgba(255, 255, 255
 </section>
 <footer>
   <div id="controls">
-    <button id="toggleAudio">🎤 靜音</button>
-    <button id="toggleVideo">📷 關閉鏡頭</button>
+    <button id="toggleAudioBtn">🎤 關閉音訊</button>
+    <button id="toggleVideoBtn">📷 關閉視訊</button>
+    <button id="switchCameraBtn">切換相機</button>
+    <div class="status" id="audioStatus">音訊狀態: 開啟</div>
+    <div class="status" id="videoStatus">視訊狀態: 開啟</div>
     <button id="leaveRoom">🚪 離開</button>
   </div>
   <div id="status"></div>
@@ -155,12 +159,19 @@ var roomId = null;
 let sendDrink, getDrink;
 let selfStream;
 let audioEnabled = true;
+let videoEnabled = true;
+let currentFacingMode = 'user'; // 前置或後置相機
 const peerAudios = {}
 const peerVideos = {}
 
 const localVideo = document.getElementById('localVideo')
 const toggleBtn = document.getElementById('toggleAudio');
 const remoteVideo = document.getElementById('video-section')
+const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+const switchCameraBtn = document.getElementById('switchCameraBtn');
+const audioStatus = document.getElementById('audioStatus');
+const videoStatus = document.getElementById('videoStatus');
+const remoteVideos = document.getElementById('remoteVideos');
 const join = document.getElementById('joinBtn');
 const roomIdInput = document.getElementById('room-id-input');
 const statusDiv = document.getElementById('status');
@@ -174,28 +185,121 @@ generateRoom.onclick = () => {
   roomIdInput.value = roomId;
 }
 
- // 初始取得音訊+視訊串流
-  async function initStream() {
-    selfStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true
-    });
-    localVideo.srcObject = selfStream;
-  }
-  // 切換音訊狀態
-  function toggleAudio() {
-    audioEnabled = !audioEnabled;
-    const audioTracks = selfStream.getAudioTracks();
-    
-    audioTracks.forEach(track => {
-      track.enabled = audioEnabled; // 開關音訊
-    });
-
-    toggleBtn.textContent = audioEnabled ? '關閉音訊' : '啟用音訊';
-  }
-
-  toggleBtn.addEventListener('click', toggleAudio);
-  initStream();
+ // 初始化媒體串流
+        async function initMediaStream() {
+            try {
+                const constraints = {
+                    audio: true,
+                    video: {
+                        facingMode: currentFacingMode
+                    }
+                };
+                
+                selfStream = await navigator.mediaDevices.getUserMedia(constraints);
+                localVideo.srcObject = selfStream;
+                
+                // 更新狀態顯示
+                updateStatusDisplay();
+                
+                console.log('媒體串流已取得');
+            } catch (error) {
+                console.error('取得媒體串流失敗:', error);
+            }
+        }
+        
+        // 切換音訊狀態
+        async function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            
+            if (selfStream) {
+                const audioTracks = selfStream.getAudioTracks();
+                audioTracks.forEach(track => {
+                    track.enabled = audioEnabled;
+                });
+                
+                // 如果完全停止音訊軌道（而不是只是禁用）
+                // audioTracks.forEach(track => track.stop());
+                
+                // 如果需要完全移除音訊，需重新取得串流
+                // await updateMediaStream();
+            }
+            
+            updateStatusDisplay();
+        }
+        
+        // 切換視訊狀態
+        async function toggleVideo() {
+            videoEnabled = !videoEnabled;
+            
+            if (selfStream) {
+                const videoTracks = selfStream.getVideoTracks();
+                videoTracks.forEach(track => {
+                    track.enabled = videoEnabled;
+                });
+                
+                // 如果需要完全停止視訊軌道
+                // videoTracks.forEach(track => track.stop());
+                
+                // 如果需要完全移除視訊，需重新取得串流
+                // await updateMediaStream();
+            }
+            
+            updateStatusDisplay();
+        }
+        
+        // 切換相機
+        async function switchCamera() {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await updateMediaStream();
+        }
+        
+        // 更新媒體串流（重新取得）
+        async function updateMediaStream() {
+            if (selfStream) {
+                // 停止所有舊的軌道
+                selfStream.getTracks().forEach(track => track.stop());
+            }
+            
+            try {
+                const constraints = {
+                    audio: audioEnabled,
+                    video: videoEnabled ? {
+                        facingMode: currentFacingMode
+                    } : false
+                };
+                
+                selfStream = await navigator.mediaDevices.getUserMedia(constraints);
+                localVideo.srcObject = selfStream;
+                
+                // 如果有房間連接，更新串流
+                if (room) {
+                    room.replaceSelfStream(selfStream);
+                }
+                
+                updateStatusDisplay();
+            } catch (error) {
+                console.error('更新媒體串流失敗:', error);
+            }
+        }
+        
+        // 更新狀態顯示
+        function updateStatusDisplay() {
+            // 音訊狀態
+            const isAudioActive = selfStream && selfStream.getAudioTracks().some(
+                track => track.readyState === 'live' && track.enabled
+            );
+            audioStatus.textContent = `音訊狀態: ${isAudioActive ? '開啟' : '關閉'}`;
+            audioStatus.className = isAudioActive ? 'status on' : 'status off';
+            toggleAudioBtn.textContent = isAudioActive ? '關閉音訊' : '開啟音訊';
+            
+            // 視訊狀態
+            const isVideoActive = selfStream && selfStream.getVideoTracks().some(
+                track => track.readyState === 'live' && track.enabled
+            );
+            videoStatus.textContent = `視訊狀態: ${isVideoActive ? '開啟' : '關閉'}`;
+            videoStatus.className = isVideoActive ? 'status on' : 'status off';
+            toggleVideoBtn.textContent = isVideoActive ? '關閉視訊' : '開啟視訊';
+        }
 
 join.onclick = () => {
   if (!roomIdInput.value) {
@@ -315,7 +419,13 @@ room.onPeerStream((stream, peerId) => {
       logEntry.textContent = `[${timestamp}] ${message}`;
       drinkLog.prepend(logEntry);
   }
-
+// 按鈕事件監聽
+        toggleAudioBtn.addEventListener('click', toggleAudio);
+        toggleVideoBtn.addEventListener('click', toggleVideo);
+        switchCameraBtn.addEventListener('click', switchCamera);
+        
+        // 初始化
+        initMediaStream();
 </script>
 
 <script src="index.js"></script>
