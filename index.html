@@ -1,476 +1,511 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
   <title>WebRTC 聊天室</title>
   <style>
- 
-* {
-  box-sizing: border-box;
-}
+    * {
+      box-sizing: border-box;
+    }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-#canvas { /* The Godot canvas itself */
-            width: 100%;
-            height: 100%;
-            display: block; /* Remove extra space below canvas */
-			}
-/* Style the header */
+    #canvas {
+      /* The Godot canvas itself */
+      width: 100%;
+      height: 100%;
+      display: block;
+      /* Remove extra space below canvas */
+    }
 
-header {
-  background-color: #666;
-  padding: 1px;
-  text-align: center;
-  font-size: 10px;
-  color: white;
-}
+    /* Style the header */
 
-/* Create two columns/boxes that floats next to each other */
-nav {
-  float: left;
-  width: 80%;
- /* height: 300px;  only for demonstration, should be removed */
-  background: #ccc;
-  padding: 5px;
-  overflow-y: auto;
-}
+    header {
+      background-color: #666;
+      padding: 1px;
+      text-align: center;
+      font-size: 10px;
+      color: white;
+    }
 
-/* Style the list inside the menu */
-nav ul {
-  list-style-type: none;
-  padding: 0;
-}
+    /* Create two columns/boxes that floats next to each other */
+    nav {
+      float: left;
+      width: 80%;
+      /* height: 300px;  only for demonstration, should be removed */
+      background: #ccc;
+      padding: 5px;
+      overflow-y: auto;
+    }
 
-article {
-  float: left;
-  padding: 5px;
-  width: 20%;
-  background-color: #f1f1f1;
-  /*height: 300px;  only for demonstration, should be removed */
-  overflow-y: scroll;
-}
+    /* Style the list inside the menu */
+    nav ul {
+      list-style-type: none;
+      padding: 0;
+    }
 
-/* Clear floats after the columns */
-section::after {
-  content: "";
-  display: table;
-  clear: both;
-}
+    article {
+      float: left;
+      padding: 5px;
+      width: 20%;
+      background-color: #f1f1f1;
+      /*height: 300px;  only for demonstration, should be removed */
+      overflow-y: scroll;
+    }
 
-/* Style the footer */
-footer {
-  background-color: #777;
-  padding: 10px;
-  text-align: center;
-  color: white;
-}
-#status {
-    margin: 20px 0;
-    padding: 10px;
-    border-radius: 4px;
-}
-.connected {
-    background-color: #dff0d8;
-}
-.disconnected {
-    background-color: #f2dede;
-}
-#drinkLog {
-    height: 200px;
-    overflow-y: scroll;
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-top: 20px;
-}
-/* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
-@media (max-width: 600px) {
-  nav, article {
-    width: 100%;
-    height: auto;
-  }
-}
-  
-#video-section {display: flex; flex-direction: column; align-items: center; justify-content: center;padding: 3px;}
-video { width: 95%;border-radius: 1px;padding: 3px;background:rgba(255, 255, 255, 0);}
+    /* Clear floats after the columns */
+    section::after {
+      content: "";
+      display: table;
+      clear: both;
+    }
 
+    /* Style the footer */
+    footer {
+      background-color: #777;
+      padding: 10px;
+      text-align: center;
+      color: white;
+    }
+
+    #status {
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    .connected {
+      background-color: #dff0d8;
+    }
+
+    .disconnected {
+      background-color: #f2dede;
+    }
+
+    #msgLog {
+      height: 200px;
+      overflow-y: scroll;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 20px;
+    }
+
+    /* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
+    @media (max-width: 600px) {
+
+      nav,
+      article {
+        width: 100%;
+        height: auto;
+      }
+    }
+
+    #video-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3px;
+    }
+
+    video {
+      width: 95%;
+      border-radius: 1px;
+      padding: 3px;
+      background: rgba(255, 255, 255, 0);
+    }
   </style>
 </head>
+
 <body>
   <header>
-  <button id="generateRoom">🚪 產生房間號碼Room</button>
-  <input type="text" id="room-id-input" placeholder="輸入房間號碼...">
-  <button id="joinBtn">🚪 加入房間Room</button>
-  
-  <p>請確保您的瀏覽器支援 WebRTC，並允許使用攝像頭和麥克風</p>
-</header>
-<section>
-  <nav>
-    <canvas id="canvas" width="512" height="400"></canvas>
-</nav>
-  <article>
-    <div id="chat-container">
-      <div id="video-section">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <div id="remoteVideos"></div>
+    <button id="generateRoom">🚪 產生房間號碼Room</button>
+    <input type="text" id="room-id-input" placeholder="輸入房間號碼..." />
+    <button id="joinBtn">🚪 加入房間Room</button>
+
+    <p>請確保您的瀏覽器支援 WebRTC，並允許使用攝像頭和麥克風，記得加入房間</p>
+  </header>
+  <section>
+    <nav>
+      <canvas id="canvas" width="512" height="400"></canvas>
+    </nav>
+    <article>
+      <div id="chat-container">
+        <div id="video-section">
+          <video id="localVideo" autoplay muted playsinline></video>
+          <div id="remoteVideos"></div>
+        </div>
       </div>
+    </article>
+  </section>
+  <footer>
+    <div id="controls">
+      <button id="toggleAudioBtn">🎤 關閉音訊</button>
+      <button id="toggleVideoBtn">📷 關閉視訊</button>
+      <button id="switchCameraBtn">切換相機</button>
+      <div class="status" id="audioStatus">音訊狀態: 開啟</div>
+      <div class="status" id="videoStatus">視訊狀態: 開啟</div>
+      <button id="leaveRoom">🚪 離開</button>
     </div>
-    
-  </article>
-</section>
-<footer>
-  <div id="controls">
-    <button id="toggleAudioBtn">🎤 關閉音訊</button>
-    <button id="toggleVideoBtn">📷 關閉視訊</button>
-    <button id="switchCameraBtn">切換相機</button>
-    <div class="status" id="audioStatus">音訊狀態: 開啟</div>
-    <div class="status" id="videoStatus">視訊狀態: 開啟</div>
-    <button id="leaveRoom">🚪 離開</button>
-  </div>
-  <div id="status"></div>
-  <div id="drink-section">
-    <input type="text" id="drinkInput" placeholder="輸入...">
-    <button id="sendDrinkBtn">傳送</button>
-    <div id="drinkLog"></div>
-  </div>
+    <div id="status"></div>
+    <div id="msg-section">
+      <input type="text" id="msgInput" placeholder="輸入..." />
+      <button id="sendMsgBtn">傳送</button>
+      <div id="msgLog"></div>
+    </div>
+  </footer>
 
-</footer>
+  <script src="index.js"></script>
 
-<script type="module">
-import {joinRoom} from './trystero-nostr.min.js'
-import {selfId} from './trystero-nostr.min.js'
+  <script type="module">
+    import { joinRoom } from "./trystero-nostr.min.js";
+    import { selfId } from "./trystero-nostr.min.js";
 
-function randomAscii6() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
-}
-
-
-let room ;
-var roomId = null;
-let sendDrink, getDrink;
-let selfStream;
-let audioEnabled = true;
-let videoEnabled = true;
-let currentFacingMode = 'user'; // 前置或後置相機
-const peerAudios = {}
-const peerVideos = {}
-
-const localVideo = document.getElementById('localVideo')
-const toggleBtn = document.getElementById('toggleAudio');
-const remoteVideo = document.getElementById('video-section')
-const toggleVideoBtn = document.getElementById('toggleVideoBtn');
-const switchCameraBtn = document.getElementById('switchCameraBtn');
-const audioStatus = document.getElementById('audioStatus');
-const videoStatus = document.getElementById('videoStatus');
-const remoteVideos = document.getElementById('remoteVideos');
-const join = document.getElementById('joinBtn');
-const roomIdInput = document.getElementById('room-id-input');
-const statusDiv = document.getElementById('status');
-const controlsDiv = document.getElementById('controls');
-const drinkInput = document.getElementById('drinkInput');
-const sendDrinkBtn = document.getElementById('sendDrinkBtn');
-const drinkLog = document.getElementById('drinkLog');
-
-generateRoom.onclick = () => {
-  roomId = randomAscii6();
-  roomIdInput.value = roomId;
-}
-
- // 初始化媒體串流
-        async function initMediaStream() {
-            try {
-                const constraints = {
-                    audio: true,
-                    video: {
-                        facingMode: currentFacingMode
-                    }
-                };
-                
-                selfStream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideo.srcObject = selfStream;
-                
-                // 更新狀態顯示
-                updateStatusDisplay();
-                
-                console.log('媒體串流已取得');
-            } catch (error) {
-                console.error('取得媒體串流失敗:', error);
-            }
-        }
-        
-        // 切換音訊狀態
-        async function toggleAudio() {
-            audioEnabled = !audioEnabled;
-            
-            if (selfStream) {
-                const audioTracks = selfStream.getAudioTracks();
-                audioTracks.forEach(track => {
-                    track.enabled = audioEnabled;
-                });
-                
-                // 如果完全停止音訊軌道（而不是只是禁用）
-                // audioTracks.forEach(track => track.stop());
-                
-                // 如果需要完全移除音訊，需重新取得串流
-                // await updateMediaStream();
-            }
-            
-            updateStatusDisplay();
-        }
-        
-        // 切換視訊狀態
-        async function toggleVideo() {
-            videoEnabled = !videoEnabled;
-            
-            if (selfStream) {
-                const videoTracks = selfStream.getVideoTracks();
-                videoTracks.forEach(track => {
-                    track.enabled = videoEnabled;
-                });
-                
-                // 如果需要完全停止視訊軌道
-                // videoTracks.forEach(track => track.stop());
-                
-                // 如果需要完全移除視訊，需重新取得串流
-                // await updateMediaStream();
-            }
-            
-            updateStatusDisplay();
-        }
-        
-        // 切換相機
-        async function switchCamera() {
-            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-            await updateMediaStream();
-        }
-        
-        // 更新媒體串流（重新取得）
-        async function updateMediaStream() {
-            if (selfStream) {
-                // 停止所有舊的軌道
-                selfStream.getTracks().forEach(track => track.stop());
-            }
-            
-            try {
-                const constraints = {
-                    audio: audioEnabled,
-                    video: videoEnabled ? {
-                        facingMode: currentFacingMode
-                    } : false
-                };
-                
-                selfStream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideo.srcObject = selfStream;
-                
-                // 如果有房間連接，更新串流
-                if (room) {
-                    room.replaceSelfStream(selfStream);
-                }
-                
-                updateStatusDisplay();
-            } catch (error) {
-                console.error('更新媒體串流失敗:', error);
-            }
-        }
-        
-        // 更新狀態顯示
-        function updateStatusDisplay() {
-            // 音訊狀態
-            const isAudioActive = selfStream && selfStream.getAudioTracks().some(
-                track => track.readyState === 'live' && track.enabled
-            );
-            audioStatus.textContent = `音訊狀態: ${isAudioActive ? '開啟' : '關閉'}`;
-            audioStatus.className = isAudioActive ? 'status on' : 'status off';
-            toggleAudioBtn.textContent = isAudioActive ? '關閉音訊' : '開啟音訊';
-            
-            // 視訊狀態
-            const isVideoActive = selfStream && selfStream.getVideoTracks().some(
-                track => track.readyState === 'live' && track.enabled
-            );
-            videoStatus.textContent = `視訊狀態: ${isVideoActive ? '開啟' : '關閉'}`;
-            videoStatus.className = isVideoActive ? 'status on' : 'status off';
-            toggleVideoBtn.textContent = isVideoActive ? '關閉視訊' : '開啟視訊';
-        }
-
-join.onclick = () => {
-  if (!roomIdInput.value) {
-                alert('請輸入房間ID');
-                return;
-            }
-  join.disabled = true;
-  roomIdInput.disabled = true;
-  try {
-    const config = { appId: 'godot-video-app' };
-    room = joinRoom(config, roomIdInput.value.trim());
-    toGodot({"type": "joinRoom", "data": {"peerId": selfId, "message": `已加入房間 ${roomId}`}});
-
-    // 建立 drink 動作
-    [sendDrink, getDrink] = room.makeAction('drink');
-    // 設置接收飲料的處理函數
-      getDrink(drink => {
-          const timestamp = new Date().toLocaleTimeString();
-          const logEntry = document.createElement('div');
-          logEntry.textContent = `[${timestamp}] 收到: ${drink}`;
-          drinkLog.prepend(logEntry);
-      });
- 
-    room.onPeerJoin(peerId => {
-      logMessage(`同伴加入: ${peerId}`);
-      updateStatus();
-    })
-
-    room.onPeerLeave(peerId => {
-      logMessage(`同伴離開: ${peerId}`);
-      updateStatus();
-      delete peerAudios.peerId;
-      delete peerVideos.peerId;
-      let peerDiv = document.getElementById(peerId);
-        if (peerDiv) {
-            peerDiv.remove(); // Removes the div element from the DOM
-        };
-    });
-    // 更新UI
-    controlsDiv.style.display = 'block';
-    statusDiv.textContent = '狀態: 已連接';
-    statusDiv.className = 'connected';
-    
-    logMessage('已成功加入房間，可以開始傳送了！');
-     } catch (error) {
-                console.error('連接失敗:', error);
-                statusDiv.textContent = `狀態: 連接失敗 - ${error.message}`;
-                statusDiv.className = 'disconnected';
-                startBtn.disabled = false;
-                roomIdInput.disabled = false;
-    }       
-
-// get a local video,audio stream from the microphone
-localVideo.srcObject = selfStream
-
-// send stream to peers currently in the room
-room.addStream(selfStream)
-
-
-// send stream to peers who join later
-room.onPeerJoin(peerId => {
-  room.addStream(selfStream, peerId)
-  toGodot({"type": "peerJoin", "data": {"peerId": peerId, "message": `${peerId} joined`}});
-})
-
-// handle streams from other peers
-room.onPeerStream((stream, peerId) => {
-  const audio = new Audio()
-  audio.srcObject = stream
-  audio.autoplay = true
-  peerAudios[peerId] = audio
-
-  let video = peerVideos[peerId]
-  if (!video) {
-    video = document.createElement('video')
-    video.setAttribute("id", peerId);
-    // iOS 手機使用時，必須增加的屬性
-    video.setAttribute("autoplay", "");
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
-    remoteVideo.appendChild(video)
-    }
-  video.srcObject = stream
-  peerVideos[peerId] = video
-  })
-}
-// 發送飲料按鈕點擊事件
-  sendDrinkBtn.addEventListener('click', () => {
-      const drink = drinkInput.value.trim();
-      if (!drink) {
-          alert('請輸入飲料名稱');
-          return;
+    function randomAscii6() {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let result = "";
+      for (let i = 0; i < 6; i++) {
+        result += chars[Math.floor(Math.random() * chars.length)];
       }
-      
-      // 發送飲料給所有同伴
-      sendDrink(drink);
-      
+      return result;
+    }
+
+    let room;
+    var roomId = null;
+    let sendMsg, getMsg;
+    let selfStream;
+    let audioEnabled = true;
+    let videoEnabled = true;
+    let currentFacingMode = "user"; // 前置或後置相機
+    const peerAudios = {};
+    const peerVideos = {};
+
+    const localVideo = document.getElementById("localVideo");
+    const toggleAudioBtn = document.getElementById("toggleAudioBtn");
+    const remoteVideo = document.getElementById("video-section");
+    const toggleVideoBtn = document.getElementById("toggleVideoBtn");
+    const switchCameraBtn = document.getElementById("switchCameraBtn");
+    const audioStatus = document.getElementById("audioStatus");
+    const videoStatus = document.getElementById("videoStatus");
+    //const remoteVideos = document.getElementById('remoteVideos');
+    const join = document.getElementById("joinBtn");
+    const roomIdInput = document.getElementById("room-id-input");
+    const statusDiv = document.getElementById("status");
+    const controlsDiv = document.getElementById("controls");
+    const msgInput = document.getElementById("msgInput");
+    const sendMsgBtn = document.getElementById("sendMsgBtn");
+    const msgLog = document.getElementById("msgLog");
+
+    generateRoom.onclick = () => {
+      roomId = randomAscii6();
+      roomIdInput.value = roomId;
+    };
+
+    // 初始化媒體串流
+    async function initMediaStream() {
+      try {
+        const constraints = {
+          audio: true,
+          video: {
+            facingMode: currentFacingMode,
+          },
+        };
+
+        selfStream = await navigator.mediaDevices.getUserMedia(constraints);
+        localVideo.srcObject = selfStream;
+
+        // 更新狀態顯示
+        updateStatusDisplay();
+
+        console.log("媒體串流已取得");
+      } catch (error) {
+        console.error("取得媒體串流失敗:", error);
+      }
+    }
+
+    // 切換音訊狀態
+    async function toggleAudio() {
+      audioEnabled = !audioEnabled;
+
+      if (selfStream) {
+        const audioTracks = selfStream.getAudioTracks();
+        audioTracks.forEach((track) => {
+          track.enabled = audioEnabled;
+        });
+
+        // 如果完全停止音訊軌道（而不是只是禁用）
+        // audioTracks.forEach(track => track.stop());
+
+        // 如果需要完全移除音訊，需重新取得串流
+        // await updateMediaStream();
+      }
+
+      updateStatusDisplay();
+    }
+
+    // 切換視訊狀態
+    async function toggleVideo() {
+      videoEnabled = !videoEnabled;
+
+      if (selfStream) {
+        const videoTracks = selfStream.getVideoTracks();
+        videoTracks.forEach((track) => {
+          track.enabled = videoEnabled;
+        });
+
+        // 如果需要完全停止視訊軌道
+        // videoTracks.forEach(track => track.stop());
+
+        // 如果需要完全移除視訊，需重新取得串流
+        // await updateMediaStream();
+      }
+
+      updateStatusDisplay();
+    }
+
+    // 切換相機
+    async function switchCamera() {
+      currentFacingMode =
+        currentFacingMode === "user" ? "environment" : "user";
+      await updateMediaStream();
+    }
+
+    // 更新媒體串流（重新取得）
+    async function updateMediaStream() {
+      if (selfStream) {
+        // 停止所有舊的軌道
+        selfStream.getTracks().forEach((track) => track.stop());
+      }
+
+      try {
+        const constraints = {
+          audio: audioEnabled,
+          video: videoEnabled
+            ? {
+              facingMode: currentFacingMode,
+            }
+            : false,
+        };
+
+        selfStream = await navigator.mediaDevices.getUserMedia(constraints);
+        localVideo.srcObject = selfStream;
+
+        // 如果有房間連接，更新串流
+        if (room) {
+          room.replaceSelfStream(selfStream);
+        }
+
+        updateStatusDisplay();
+      } catch (error) {
+        console.error("更新媒體串流失敗:", error);
+      }
+    }
+
+    // 更新狀態顯示
+    function updateStatusDisplay() {
+      // 音訊狀態
+      const isAudioActive =
+        selfStream &&
+        selfStream
+          .getAudioTracks()
+          .some((track) => track.readyState === "live" && track.enabled);
+      audioStatus.textContent = `音訊狀態: ${isAudioActive ? "開啟" : "關閉"
+        }`;
+      audioStatus.className = isAudioActive ? "status on" : "status off";
+      toggleAudioBtn.textContent = isAudioActive ? "關閉音訊" : "開啟音訊";
+
+      // 視訊狀態
+      const isVideoActive =
+        selfStream &&
+        selfStream
+          .getVideoTracks()
+          .some((track) => track.readyState === "live" && track.enabled);
+      videoStatus.textContent = `視訊狀態: ${isVideoActive ? "開啟" : "關閉"
+        }`;
+      videoStatus.className = isVideoActive ? "status on" : "status off";
+      toggleVideoBtn.textContent = isVideoActive ? "關閉視訊" : "開啟視訊";
+    }
+
+    join.onclick = () => {
+      if (!roomIdInput.value) {
+        alert("請輸入房間ID");
+        return;
+      }
+      join.disabled = true;
+      roomIdInput.disabled = true;
+      try {
+        const config = { appId: "godot-video-app" };
+        room = joinRoom(config, roomIdInput.value.trim());
+        toGodot({
+          type: "joinRoom",
+          data: { peerId: selfId, message: `已加入房間 ${roomIdInput.value.trim()}` },
+        });
+
+        // 建立 msg 動作
+        [sendMsg, getMsg] = room.makeAction("msg");
+        // 設置接收訊息的處理函數
+        getMsg((msg) => {
+          const timestamp = new Date().toLocaleTimeString();
+          const logEntry = document.createElement("div");
+          logEntry.textContent = `[${timestamp}] 收到: ${msg}`;
+          msgLog.prepend(logEntry);
+          toGodot({
+            type: "msg",
+            data: { peerId: msg.peerId, message: msg.message },
+          });
+        });
+
+        room.onPeerJoin((peerId) => {
+          logMessage(`同伴加入: ${peerId}`);
+          updateStatus();
+        });
+
+        room.onPeerLeave((peerId) => {
+          logMessage(`同伴離開: ${peerId}`);
+          updateStatus();
+          delete peerAudios.peerId;
+          delete peerVideos.peerId;
+          let peerDiv = document.getElementById(peerId);
+          if (peerDiv) {
+            peerDiv.remove(); // Removes the div element from the DOM
+          }
+        });
+        // 更新UI
+        controlsDiv.style.display = "block";
+        statusDiv.textContent = "狀態: 已連接";
+        statusDiv.className = "connected";
+        logMessage("已成功加入房間，可以開始傳送了！");
+      } catch (error) {
+        console.error("連接失敗:", error);
+        statusDiv.textContent = `狀態: 連接失敗 - ${error.message}`;
+        statusDiv.className = "disconnected";
+        startBtn.disabled = false;
+        roomIdInput.disabled = false;
+      }
+
+      // get a local video,audio stream from the microphone
+      localVideo.srcObject = selfStream;
+
+      // send stream to peers currently in the room
+      room.addStream(selfStream);
+
+      // send stream to peers who join later
+      room.onPeerJoin((peerId) => {
+        room.addStream(selfStream, peerId);
+        toGodot({
+          type: "joinRoom",
+          data: { "peerId": peerId, "message": `${peerId} joined` },
+        });
+      });
+
+      // handle streams from other peers
+      room.onPeerStream((stream, peerId) => {
+        const audio = new Audio();
+        audio.srcObject = stream;
+        audio.autoplay = true;
+        peerAudios[peerId] = audio;
+
+        let video = peerVideos[peerId];
+        if (!video) {
+          video = document.createElement("video");
+          video.setAttribute("id", peerId);
+          // iOS 手機使用時，必須增加的屬性
+          video.setAttribute("autoplay", "");
+          video.setAttribute("muted", "");
+          video.setAttribute("playsinline", "");
+          remoteVideo.appendChild(video);
+        }
+        video.srcObject = stream;
+        peerVideos[peerId] = video;
+      });
+    };
+    // 發送按鈕點擊事件
+    sendMsgBtn.addEventListener("click", () => {
+      const msg = msgInput.value.trim();
+      if (!msg) {
+        alert("請輸入訊息");
+        return;
+      }
+
+      // 發送訊息給所有同伴
+      sendMsg({
+        "type":"joinRoom",
+        "data":{"peerId": selfId,"message": msg},
+      });
+
       // 記錄到本地日誌
       const timestamp = new Date().toLocaleTimeString();
-      const logEntry = document.createElement('div');
-      logEntry.textContent = `[${timestamp}] 你送出了: ${drink}`;
-      drinkLog.prepend(logEntry);
-      
+      const logEntry = document.createElement("div");
+      logEntry.textContent = `[${timestamp}] 你送出了: ${msg}`;
+      msgLog.prepend(logEntry);
+
       // 清空輸入框
-      drinkInput.value = '';
-  });
-// 更新狀態顯示
-  function updateStatus() {
+      msgInput.value = "";
+    });
+    // 更新狀態顯示
+    function updateStatus() {
       const peers = room.getPeers();
       statusDiv.textContent = `狀態: 已連接 (${peers.length} 位同伴)`;
-  }
-  
-  // 記錄消息到日誌
-  function logMessage(message) {
-      const timestamp = new Date().toLocaleTimeString();
-      const logEntry = document.createElement('div');
-      logEntry.textContent = `[${timestamp}] ${message}`;
-      drinkLog.prepend(logEntry);
-  }
-// 按鈕事件監聽
-        toggleAudioBtn.addEventListener('click', toggleAudio);
-        toggleVideoBtn.addEventListener('click', toggleVideo);
-        switchCameraBtn.addEventListener('click', switchCamera);
-        
-        // 初始化
-        initMediaStream();
-</script>
-
-<script src="index.js"></script>
-<script>
-	const GODOT_THREADS_ENABLED = false;
-    var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":5247296,"index.wasm":43016933},"focusCanvas":true,"gdextensionLibs":[]});
-	engine.startGame({
-    /* optional override configuration, eg. */
-	 //args:[],
-     //unloadAfterInit: false,
-	 focusCanvas:true,
-	 gdextensionLibs:[],
-	 ensureCrossOriginIsolationHeaders:true,
-   canvasResizePolicy: 0,
-	});
-
-  var value = "1234567890";
-  var toGodot = null;
-  
-  
-  window.JSGD = {
-// 這個函數會在 Godot 中被調用
-	getVal: function() {
-		return ("peerId" in window) ? room.peerId : "未設定\n";
-	},
-  sendVal: function(val) {
-    let value = JSON.parse(val);
-		sendDrink({drink: value.drink, withIce: value.withIce}, value.frandId);
-	},
-	gdcb: function(gdCbFunc) {
-		if (typeof gdCbFunc === "function") {
-      toGodot = gdCbFunc;
-      // 立即測試回調
-      gdCbFunc("JavaScript 回調函數已設置");
-      console.log("Godot callback function ready to use");
-    } else {
-      console.log("Godot callback function must be a function");
     }
-	}
-};
- </script>
+
+    // 記錄消息到日誌
+    function logMessage(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement("div");
+      logEntry.textContent = `[${timestamp}] ${message}`;
+      msgLog.prepend(logEntry);
+    }
+    // 按鈕事件監聽
+    toggleAudioBtn.addEventListener("click", toggleAudio);
+    toggleVideoBtn.addEventListener("click", toggleVideo);
+    switchCameraBtn.addEventListener("click", switchCamera);
+
+    // 初始化
+    initMediaStream();
 
 
 
+    // Godot Engine 初始化
+    const GODOT_THREADS_ENABLED = false;
+    var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":5247760,"index.wasm":43016933},"focusCanvas":false,"gdextensionLibs":[]});
+    engine.startGame({
+      /* optional override configuration, eg. */
+      //args:[],
+      //unloadAfterInit: false,
+      focusCanvas: true,
+      gdextensionLibs: [],
+      ensureCrossOriginIsolationHeaders: true,
+      canvasResizePolicy: 0,
+    });
+
+    let toGodot = null;
+
+    window.JSGD = {
+      // 發送訊息到 Godot
+      gdSend: function (gdMsg) {
+        //sendMsg(JSON.parse(gdMsg));
+        console.log("sendMsg is ", gdMsg);
+      },
+      // 設置 Godot 回調函數
+      gdcb: function (gdCbFunc) {
+        if (typeof gdCbFunc === "function") {
+          toGodot = gdCbFunc;
+          // 立即測試回調
+          gdCbFunc("JavaScript 回調函數已設置");
+          console.log("Godot callback function ready to use");
+        } else {
+          console.log("Godot callback function must be a function");
+        }
+      },
+    };
+
+
+  </script>
 </body>
+
 </html>
-
-
