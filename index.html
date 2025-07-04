@@ -352,11 +352,11 @@
         getMsg((msg) => {
           const timestamp = new Date().toLocaleTimeString();
           const logEntry = document.createElement("div");
-          logEntry.textContent = `[${timestamp}] 收到: ${msg}`;
+          logEntry.textContent = `[${timestamp}] 收到: ${msg.type} - ${msg.data.peerId} - ${msg.data.message}`;
           msgLog.prepend(logEntry);
           toGodot({
-            type: "msg",
-            data: { peerId: msg.peerId, message: msg.message },
+            "type": msg.type,
+            "data": { "peerId": msg.data.peerId, "message": msg.data.message },
           });
         });
 
@@ -472,7 +472,7 @@
 
     // Godot Engine 初始化
     const GODOT_THREADS_ENABLED = false;
-    var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":5247904,"index.wasm":43016933},"focusCanvas":false,"gdextensionLibs":[]});
+    var engine = new Engine({"args":[],"canvasResizePolicy":1,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":5247984,"index.wasm":43016933},"focusCanvas":false,"gdextensionLibs":[]});
     engine.startGame({
       /* optional override configuration, eg. */
       //args:[],
@@ -488,8 +488,8 @@
     window.JSGD = {
       // 發送訊息到 Godot
       gdSend: function (gdMsg) {
-        //sendMsg(JSON.parse(gdMsg));
-        console.log("sendMsg is ", gdMsg);
+        sendMsg(JSON.parse(gdMsg));
+        console.log("sendMsg is ", JSON.parse(gdMsg));
       },
       // 設置 Godot 回調函數
       gdcb: function (gdCbFunc) {
